@@ -51,7 +51,7 @@ CORS(app)  # allow requests from your HTML frontend
 # ── helpers ────────────────────────────────────────────────────────────────────
 def process_image(
     img: Image.Image,
-    model: str = "isnet-general-use",
+    model: str = "u2netp",
     upscale: int = 1,
     bg_mode: str = "transparent"
 ) -> Image.Image:
@@ -101,12 +101,12 @@ def remove_bg():
         return jsonify({"error": f"File too large (max {MAX_FILE_MB}MB)"}), 413
 
     # ── parse options ──────────────────────────────────────────────────────────
-    model   = request.form.get("model", "isnet-general-use")
+    model   = request.form.get("model", "u2netp")
     bg_mode = request.form.get("bg", "transparent")
     upscale = int(request.form.get("upscale", 1))
 
     if model not in MODELS:
-        model = "isnet-general-use"
+        model = "u2netp"
     if bg_mode not in ("transparent", "white", "black"):
         bg_mode = "transparent"
     upscale = max(1, min(upscale, 4))
