@@ -4,7 +4,7 @@ Run: python app.py
 API: POST /remove-bg
 """
 
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, send_from_directory
 from flask_cors import CORS
 from rembg import remove, new_session
 from PIL import Image
@@ -79,7 +79,7 @@ def process_image(
 # ── routes ─────────────────────────────────────────────────────────────────────
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "CutOut.ai backend running", "version": "1.0"})
+    return send_from_directory(".", "index.html")
 
 
 @app.route("/remove-bg", methods=["POST"])
