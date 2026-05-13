@@ -169,5 +169,5 @@ MIT License — free to use, modify, and distribute.
 ---
 
 <p align="center">
-  Made with ♥ by <strong>Sankhadeep</strong> &nbsp;·&nbsp; Powered by remove.bg · Flask · Python
+  Made with ♥ by <strong>Sankhadeep</strong> &nbsp;·&nbsp; Powered by Flask · Python
 </p>
