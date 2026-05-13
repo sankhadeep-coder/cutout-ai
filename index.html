@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CutOut AI — Background Remover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080B14;
+    --bg2: #0E1220;
+    --card: #131726;
+    --border: #1E2440;
+    --border2: #2A3060;
+    --accent: #00D4AA;
+    --accent2: #7C6FFF;
+    --red: #FF5C6A;
+    --text: #E4E8FF;
+    --muted: #6B7299;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .orb { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; }
+  .orb-1 { width: 500px; height: 500px; background: rgba(124,111,255,0.08); top: -100px; right: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(0,212,170,0.06); bottom: 0; left: -100px; }
+
+  nav {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  .nav-pill { background: rgba(0,212,170,0.1); color: var(--accent); border: 1px solid rgba(0,212,170,0.25); padding: 6px 16px; border-radius: 100px; font-size: 13px; font-weight: 500; }
+
+  .hero { position: relative; z-index: 1; text-align: center; padding: 72px 24px 48px; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(124,111,255,0.1); border: 1px solid rgba(124,111,255,0.25); color: #A89CFF; border-radius: 100px; padding: 6px 16px; font-size: 13px; font-weight: 500; margin-bottom: 28px; }
+  .hero-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  h1 { font-family: 'Syne', sans-serif; font-size: clamp(40px, 6vw, 72px); font-weight: 800; line-height: 1.05; letter-spacing: -2px; margin-bottom: 20px; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .hero-sub { color: var(--muted); font-size: 18px; font-weight: 300; max-width: 520px; margin: 0 auto; line-height: 1.6; }
+
+  .tool-wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  .upload-zone {
+    border: 2px dashed var(--border2); border-radius: 24px; background: var(--card);
+    min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.3s ease; overflow: hidden; margin-bottom: 20px;
+  }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(0,212,170,0.03); }
+  .upload-zone.dragover { border-color: var(--accent); background: rgba(0,212,170,0.06); transform: scale(1.005); }
+  .upload-zone input[type=file] { display: none; }
+  .upload-icon { width: 72px; height: 72px; border-radius: 20px; background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; font-size: 32px; }
+  .upload-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .upload-sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .upload-btn { background: var(--accent); color: #080B14; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 100px; border: none; cursor: pointer; transition: all 0.2s; }
+  .upload-btn:hover { background: #00EDBB; transform: translateY(-1px); }
+  .upload-formats { color: var(--muted); font-size: 12px; margin-top: 16px; }
+
+  .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .preview-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
+  .preview-label { padding: 14px 18px; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 100px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .badge-green { background: rgba(0,212,170,0.12); color: var(--accent); }
+  .badge-purple { background: rgba(124,111,255,0.12); color: #A89CFF; }
+  .preview-img-wrap { min-height: 300px; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .checker-bg { background-image: linear-gradient(45deg,#1A1D27 25%,transparent 25%), linear-gradient(-45deg,#1A1D27 25%,transparent 25%), linear-gradient(45deg,transparent 75%,#1A1D27 75%), linear-gradient(-45deg,transparent 75%,#1A1D27 75%); background-size: 20px 20px; background-position: 0 0,0 10px,10px -10px,-10px 0; background-color: #131726; }
+  .preview-img-wrap img { max-width: 100%; max-height: 300px; object-fit: contain; border-radius: 10px; }
+  .preview-placeholder { text-align: center; color: var(--muted); }
+
+  .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .spinner { width: 48px; height: 48px; border: 3px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner-text { color: var(--muted); font-size: 14px; }
+
+  .settings-row { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 20px 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+  .setting-group { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 160px; }
+  .setting-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; }
+  .seg-ctrl { display: flex; background: var(--bg2); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg-btn { flex: 1; padding: 7px 12px; border-radius: 8px; border: none; background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .seg-btn.active { background: var(--border2); color: var(--text); }
+  select.setting-select { background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 9px 14px; border-radius: 10px; outline: none; width: 100%; cursor: pointer; transition: border-color 0.2s; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7299' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+  select.setting-select:focus { border-color: var(--accent); }
+
+  .status-bar { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; font-size: 13px; color: var(--muted); margin-bottom: 16px; display: none; align-items: center; gap: 10px; }
+  .status-bar.show { display: flex; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .status-dot.green { background: var(--accent); }
+  .status-dot.red { background: var(--red); }
+  .status-dot.yellow { background: #EF9F27; animation: pulse 1.5s infinite; }
+
+  .action-row { display: flex; gap: 12px; }
+  .btn-primary { flex: 1; padding: 16px 32px; background: var(--accent); color: #080B14; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; border: none; border-radius: 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .btn-primary:hover:not(:disabled) { background: #00EDBB; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,212,170,0.25); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary { padding: 16px 28px; background: transparent; color: var(--accent); font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 15px; border: 1px solid rgba(0,212,170,0.3); border-radius: 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+  .btn-secondary:hover:not(:disabled) { background: rgba(0,212,170,0.08); border-color: var(--accent); }
+  .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-danger { padding: 16px 20px; background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 15px; border: 1px solid var(--border); border-radius: 14px; cursor: pointer; transition: all 0.2s; }
+  .btn-danger:hover { color: var(--red); border-color: rgba(255,92,106,0.4); background: rgba(255,92,106,0.05); }
+
+  .features { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+  .features-head { text-align: center; margin-bottom: 40px; }
+  .features-head h2 { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+  .features-head p { color: var(--muted); font-size: 16px; }
+  .features-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .feat-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 28px 24px; transition: border-color 0.3s; }
+  .feat-card:hover { border-color: var(--border2); }
+  .feat-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 16px; }
+  .feat-icon.teal { background: rgba(0,212,170,0.1); }
+  .feat-icon.purple { background: rgba(124,111,255,0.1); }
+  .feat-icon.amber { background: rgba(239,159,39,0.1); }
+  .feat-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .feat-desc { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+  footer { position: relative; z-index: 1; border-top: 1px solid var(--border); padding: 32px 48px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 700px) {
+    nav { padding: 16px 20px; }
+    .preview-grid { grid-template-columns: 1fr; }
+    .features-grid { grid-template-columns: 1fr; }
+    .settings-row { flex-direction: column; }
+    .action-row { flex-direction: column; }
+    footer { flex-direction: column; gap: 12px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<nav>
+  <div class="logo">Cut<span>Out</span>.ai</div>
+  <div class="nav-pill">✦ 100% Free &amp; Private</div>
+</nav>
+
+<section class="hero">
+  <div class="hero-badge">AI-Powered Background Removal</div>
+  <h1>Remove backgrounds<br><em>instantly.</em></h1>
+  <p class="hero-sub">Upload any image. Our AI removes the background in seconds — no manual selection, no Photoshop.</p>
+</section>
+
+<div class="tool-wrap">
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept="image/*">
+    <div id="uploadPlaceholder">
+      <div class="upload-icon">🖼️</div>
+      <div class="upload-title">Drop your image here</div>
+      <div class="upload-sub">or click to browse from your device</div>
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose Image</button>
+      <div class="upload-formats">JPG, PNG, WEBP, BMP, TIFF — max 20MB</div>
+    </div>
+  </div>
+
+  <div id="previewSection" style="display:none;">
+    <div class="preview-grid">
+      <div class="preview-card">
+        <div class="preview-label">Original <span class="badge badge-purple">Input</span></div>
+        <div class="preview-img-wrap">
+          <img id="originalImg" src="" alt="Original">
+        </div>
+      </div>
+      <div class="preview-card">
+        <div class="preview-label">Result <span class="badge badge-green">Output</span></div>
+        <div class="preview-img-wrap checker-bg" id="resultWrap">
+          <div class="preview-placeholder" id="resultPlaceholder">
+            <p style="margin-top:8px;font-size:14px;">Click "Remove Background"</p>
+          </div>
+          <img id="resultImg" src="" alt="Result" style="display:none;">
+          <div class="spinner-wrap" id="spinnerWrap" style="display:none;">
+            <div class="spinner"></div>
+            <div class="spinner-text" id="spinnerText">Loading AI model…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <div class="setting-group">
+        <div class="setting-label">AI Model</div>
+        <select class="setting-select" id="modelSelect">
+          <option value="isnet-general-use">Best Quality (Recommended)</option>
+          <option value="u2net_human_seg">Portraits &amp; People</option>
+          <option value="u2net">General Purpose</option>
+          <option value="silueta">Fast Processing</option>
+          <option value="u2netp">Fastest (Lower Quality)</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">Background</div>
+        <div class="seg-ctrl">
+          <button class="seg-btn active" data-bg="transparent">Transparent</button>
+          <button class="seg-btn" data-bg="white">White</button>
+          <button class="seg-btn" data-bg="black">Black</button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">Upscale</div>
+        <div class="seg-ctrl">
+          <button class="seg-btn active" data-scale="1">None</button>
+          <button class="seg-btn" data-scale="2">×2</button>
+          <button class="seg-btn" data-scale="3">×3</button>
+          <button class="seg-btn" data-scale="4">×4</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText"></span>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-primary" id="removeBtn"><span>⚡</span> Remove Background</button>
+      <button class="btn-secondary" id="downloadBtn" disabled>↓ Download PNG</button>
+      <button class="btn-danger" id="clearBtn">✕ Clear</button>
+    </div>
+  </div>
+
+</div>
+
+<section class="features">
+  <div class="features-head">
+    <h2>Why CutOut.ai?</h2>
+    <p>Professional results, zero effort.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feat-card">
+      <div class="feat-icon teal">🤖</div>
+      <div class="feat-title">5 AI Models</div>
+      <div class="feat-desc">Choose the right model for your subject — portraits, products, animals, or anything else.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon purple">🔒</div>
+      <div class="feat-title">100% Private</div>
+      <div class="feat-desc">Your images are processed locally on your server and never stored or shared with anyone.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon amber">⚡</div>
+      <div class="feat-title">Upscaling Built-in</div>
+      <div class="feat-desc">Export at ×2, ×3, or ×4 resolution — perfect for print, ecommerce, or professional use.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px;">Cut<span style="color:var(--accent)">Out</span>.ai</div>
+  <div>Powered by rembg · Flask · Python</div>
+  <div>Made with ♥ — 100% free</div>
+</footer>
+
+<script>
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  const previewSection = document.getElementById('previewSection');
+  const originalImg = document.getElementById('originalImg');
+  const resultImg = document.getElementById('resultImg');
+  const resultPlaceholder = document.getElementById('resultPlaceholder');
+  const spinnerWrap = document.getElementById('spinnerWrap');
+  const spinnerText = document.getElementById('spinnerText');
+  const removeBtn = document.getElementById('removeBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const statusBar = document.getElementById('statusBar');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+
+  let selectedBg = 'transparent';
+  let selectedScale = '1';
+  let currentFile = null;
+  let resultBlob = null;
+
+  document.querySelectorAll('[data-bg]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-bg]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedBg = btn.dataset.bg;
+    });
+  });
+  document.querySelectorAll('[data-scale]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-scale]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedScale = btn.dataset.scale;
+    });
+  });
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) loadFile(file);
+  });
+  uploadZone.addEventListener('click', () => { if (!uploadZone.classList.contains('has-image')) fileInput.click(); });
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+  function loadFile(file) {
+    currentFile = file; resultBlob = null;
+    const reader = new FileReader();
+    reader.onload = e => {
+      originalImg.src = e.target.result;
+      uploadZone.style.display = 'none';
+      previewSection.style.display = 'block';
+      resultImg.style.display = 'none';
+      resultPlaceholder.style.display = 'block';
+      spinnerWrap.style.display = 'none';
+      downloadBtn.disabled = true;
+      hideStatus();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeBtn.addEventListener('click', async () => {
+    if (!currentFile) return;
+    setSpinner(true, 'Processing with AI…');
+    removeBtn.disabled = true;
+    downloadBtn.disabled = true;
+    hideStatus();
+
+    const form = new FormData();
+    form.append('image', currentFile);
+    form.append('model', document.getElementById('modelSelect').value);
+    form.append('bg', selectedBg);
+    form.append('upscale', selectedScale);
+
+    const steps = ['Loading AI model…', 'Analyzing image…', 'Removing background…', 'Finalizing result…'];
+    let si = 0;
+    const interval = setInterval(() => { si = (si+1) % steps.length; spinnerText.textContent = steps[si]; }, 1400);
+
+    try {
+      const res = await fetch('http://localhost:5000/remove-bg', { method: 'POST', body: form });
+      clearInterval(interval);
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Server error'); }
+      resultBlob = await res.blob();
+      const url = URL.createObjectURL(resultBlob);
+      resultImg.src = url;
+      resultImg.style.display = 'block';
+      resultPlaceholder.style.display = 'none';
+      downloadBtn.disabled = false;
+      showStatus('green', '✅ Done! Background removed successfully.');
+    } catch (err) {
+      clearInterval(interval);
+      resultPlaceholder.style.display = 'block';
+      showStatus('red', '❌ ' + err.message + '. Make sure the Flask server is running on port 5000.');
+    } finally {
+      setSpinner(false);
+      removeBtn.disabled = false;
+    }
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    if (!resultBlob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(resultBlob);
+    a.download = 'cutout_result.png';
+    a.click();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    currentFile = null; resultBlob = null;
+    fileInput.value = '';
+    uploadZone.style.display = 'flex';
+    previewSection.style.display = 'none';
+    hideStatus();
+  });
+
+  function setSpinner(show, msg) {
+    spinnerWrap.style.display = show ? 'flex' : 'none';
+    if (show) { resultImg.style.display = 'none'; resultPlaceholder.style.display = 'none'; spinnerText.textContent = msg; }
+  }
+  function showStatus(type, msg) { statusBar.classList.add('show'); statusDot.className = 'status-dot ' + type; statusText.textContent = msg; }
+  function hideStatus() { statusBar.classList.remove('show'); }
+</script>
+</body>
+</html>
