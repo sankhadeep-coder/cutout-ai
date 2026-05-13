@@ -1,8 +1,0 @@
-flask
-flask-cors
-rembg[cpu]
-Pillow
-opencv-python-headless
-gunicorn
-numpy
-onnxruntime
