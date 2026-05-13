@@ -357,7 +357,7 @@
     const interval = setInterval(() => { si = (si+1) % steps.length; spinnerText.textContent = steps[si]; }, 1400);
 
     try {
-      const res = await fetch('http://localhost:5000/remove-bg', { method: 'POST', body: form });
+      const res = await fetch('/remove-bg', { method: 'POST', body: form });
       clearInterval(interval);
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Server error'); }
       resultBlob = await res.blob();
